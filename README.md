@@ -1,0 +1,2 @@
+# pkmncube
+Command line utility to assist in creating a Pokemon cube. Currently takes cards in the format of [my cube spreadsheet](https://docs.google.com/spreadsheets/d/1TirrxnWlUey4cAPtrEnNwJyIwYR66ZpUo2bn5IBv4j0/edit?usp=sharing) (columns other than Name, Set Number, and Set are ignored), and fills out TCGPlayer links in Column F. Make a Google Custom Search engine for your shopping site of choice; it should be resillient enough to handle non-TCGPlayer formats, but this is not tested.
