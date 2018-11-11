@@ -14,7 +14,7 @@ using System.Collections.Generic;
 using System.Linq;
 
 namespace pkmncube {
-    class Program {
+    public class Program {
         IConfiguration Configuration { get; set; }
         SpreadsheetsResource GoogleSheets { get; set; }
         CseResource GoogleSearch { get; set; }
@@ -63,7 +63,7 @@ namespace pkmncube {
             if (help.HasValue()) Environment.Exit(0);
         }
 
-        string TCGPlayerSlug(string set) => Regex.Replace(set.ToLower().Replace(" ", "-"), @"['().]", "");
+        public string TCGPlayerSlug(string set) => Regex.Replace(set.ToLower().Replace(" ", "-"), @"['().]", "");
 
         async Task GoogleLogin() {
             var credential = await GoogleWebAuthorizationBroker.AuthorizeAsync(
@@ -114,7 +114,7 @@ namespace pkmncube {
 
                     var oldLink = row.Values[5].FormattedValue;
                     if (oldLink != "" && oldLink != null) {
-                        Console.WriteLine($"card {rowNum - 1}...");
+                        Console.WriteLine($"skipping card {rowNum - 1}...");
                         return null;
                     }
 
@@ -137,7 +137,7 @@ namespace pkmncube {
                         if (!str.Contains(TCGPlayerSlug(set))) continue;
                         if (str.Contains("deck") || str.Contains("product") || str.Contains("price-guide") || str.Contains("secret-rare")) continue;
                         if (set != "" && new Regex(".*-[ -km-uw-~]+[0-9]+$").Match(str).Success && !set.ToLower().Contains("promo")) continue;
-                        if (str.Contains(TCGPlayerSlug(name)) || name == "Oricorio" /* ??? */) { result = str; break; }
+                        if (str.Contains(TCGPlayerSlug(name))) { result = str; break; }
                     }
 
                     if (result == "") foreach (var possibleResult in list.Items) {
@@ -146,6 +146,8 @@ namespace pkmncube {
                         if (set != "" && new Regex(".*-[ -km-uw-~]+[0-9]+$").Match(str).Success && !set.ToLower().Contains("promo")) continue;
                         if (str.Contains(TCGPlayerSlug(name))) { result = str; break; }
                     }
+
+                    if (result == "") Console.WriteLine($"defaulting to \"{result = list?.Items?[0]?.Link ?? ""}\"");
 
                     if (number != "" && !result.EndsWith(number.ToString()) && !(new Regex(".*-lv[0-9]+$")).Match(result).Success) {
                         result = (new Regex("[0-9]+$")).Replace(result, number.ToString());
@@ -168,7 +170,7 @@ namespace pkmncube {
                         }
                     };
 
-                    Console.WriteLine($"card {rowNum - 1}...");
+                    Console.WriteLine($"card {rowNum - 1} ({name}): '{query}'...");
 
                     return valueUpdateRequest;
                 };
@@ -176,9 +178,11 @@ namespace pkmncube {
                 requests.Add(func());
             };
 
-            if (requests.Count > 0) {
+            var finishedRequests = (await Task.WhenAll<Request>(requests)).Where(e => e != null);
+
+            if (finishedRequests.Count() > 0) {
                 var sheetUpdateRequest = new BatchUpdateSpreadsheetRequest {
-                    Requests = (await Task.WhenAll<Request>(requests)).Where(e => e != null).ToList()
+                    Requests = finishedRequests.ToList()
                 };
 
                 await GoogleSheets.BatchUpdate(sheetUpdateRequest, Configuration["sheet"]).ExecuteAsync();
