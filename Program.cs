@@ -97,17 +97,22 @@ namespace pkmncube {
             var sheet = spreadsheet.Sheets[0];
             var cells = sheet.Data[0];
 
+            List<int> rowsUsed = new List<int>();
             List<Request> requests = new List<Request>();
             
             Parallel.ForEach<RowData>(cells.RowData, new ParallelOptions {MaxDegreeOfParallelism = -1}, (row, state, rowNumLong) => {
                 int rowNum = (int) rowNumLong;
 
+                if (rowsUsed.Contains(rowNum)) return;
+                rowsUsed.Add(rowNum);
+
                 if (++rowNum < 2) return;
                 var name = row.Values[0].FormattedValue;
                 if (name == "" || name == null) return;
                 var number = row.Values[1].FormattedValue;
-                if (number == null) return;
+                if (number == null) number = "";
                 var set = row.Values[2].FormattedValue;
+                if (set == null) set = "";
 
                 Console.WriteLine($"card {rowNum - 1}...");
 
@@ -126,24 +131,26 @@ namespace pkmncube {
 
                 var result = "";
 
+                if (list?.Items == null) return;
+
                 foreach (var possibleResult in list.Items) {
                     var str = possibleResult.Link;
                     attempts++;
                     if (attempts > 5) break;
                     if (!str.Contains(TCGPlayerSlug(set))) continue;
                     if (str.Contains("deck") || str.Contains("product") || str.Contains("price-guide") || str.Contains("secret-rare")) continue;
-                    if (new Regex(".*-[ -km-uw-~]+[0-9]+$").Match(str).Success && !set.ToLower().Contains("promo")) continue;
+                    if (set != "" && new Regex(".*-[ -km-uw-~]+[0-9]+$").Match(str).Success && !set.ToLower().Contains("promo")) continue;
                     if (str.Contains(TCGPlayerSlug(name))) {result = str; break;}
                 }
 
                 foreach (var possibleResult in list.Items) {
                     var str = possibleResult.Link;
                     if (str.Contains("deck") || str.Contains("product") || str.Contains("price-guide") || str.Contains("secret-rare")) continue;
-                    if (new Regex(".*-[a-z]+[0-9]+$").Match(str).Success && !set.ToLower().Contains("promo")) continue;
+                    if (set != "" && new Regex(".*-[ -km-uw-~]+[0-9]+$").Match(str).Success && !set.ToLower().Contains("promo")) continue;
                     if (str.Contains(TCGPlayerSlug(name))) {result = str; break;}
                 }
 
-                if (!result.EndsWith(number.ToString()) && !(new Regex(".*-lv[0-9]+$")).Match(result).Success) {
+                if (number != "" && !result.EndsWith(number.ToString()) && !(new Regex(".*-lv[0-9]+$")).Match(result).Success) {
                     result = (new Regex("[0-9]+$")).Replace(result, number.ToString());
                 }
 
