@@ -63,7 +63,7 @@ namespace pkmncube {
             if (help.HasValue()) Environment.Exit(0);
         }
 
-        string TCGPlayerSlug(string set) => set.ToLower().Replace(" ", "-");
+        string TCGPlayerSlug(string set) => set.ToLower().Replace(" ", "-").Replace("'", "");
 
         async Task GoogleLogin() {
             var credential = await GoogleWebAuthorizationBroker.AuthorizeAsync(
@@ -127,7 +127,7 @@ namespace pkmncube {
                     if (attempts > 5) break;
                     if (!str.Contains(TCGPlayerSlug(set))) continue;
                     if (str.Contains("deck") || str.Contains("product") || str.Contains("price-guide") || str.Contains("secret-rare")) continue;
-                    if (new Regex(".*-[a-z]+[0-9]+$").Match(str).Success && !set.ToLower().Contains("promo")) continue;
+                    if (new Regex(".*-[ -km-uw-~]+[0-9]+$").Match(str).Success && !set.ToLower().Contains("promo")) continue;
                     if (str.Contains(TCGPlayerSlug(name))) {result = str; break;}
                 }
 
@@ -138,7 +138,7 @@ namespace pkmncube {
                     if (str.Contains(TCGPlayerSlug(name))) {result = str; break;}
                 }
 
-                if (!result.EndsWith(number.ToString())) {
+                if (!result.EndsWith(number.ToString()) && !(new Regex(".*-lv[0-9]+$")).Match(result).Success) {
                     result = (new Regex("[0-9]+$")).Replace(result, number.ToString());
                 }
 
