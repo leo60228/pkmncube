@@ -111,6 +111,11 @@ namespace pkmncube {
 
                 Console.WriteLine($"card {rowNum - 1}...");
 
+                var oldLink = row.Values[5].FormattedValue;
+                if (oldLink != "" && oldLink != null) return;
+
+                Console.WriteLine($"card {rowNum - 1}...");
+
                 var query = $"buy \"{name}\" set {set} {number} pokemon";
 
                 var request = GoogleSearch.List(query);
@@ -164,11 +169,13 @@ namespace pkmncube {
                 }
             });
 
-            var sheetUpdateRequest = new BatchUpdateSpreadsheetRequest {
-                Requests = requests.ToList()
-            };
+            if (requests.Count > 0) {
+                var sheetUpdateRequest = new BatchUpdateSpreadsheetRequest {
+                    Requests = requests.ToList()
+                };
 
-            await GoogleSheets.BatchUpdate(sheetUpdateRequest, Configuration["sheet"]).ExecuteAsync();
+                await GoogleSheets.BatchUpdate(sheetUpdateRequest, Configuration["sheet"]).ExecuteAsync();
+            }
         }
 
         static void Main(string[] args) {
