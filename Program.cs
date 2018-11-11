@@ -105,7 +105,7 @@ namespace pkmncube {
                 if (++rowNum < 2) return;
                 var name = row.Values[0].FormattedValue;
                 if (name == "" || name == null) return;
-                var number = row.Values[1].EffectiveValue.NumberValue;
+                var number = row.Values[1].FormattedValue;
                 if (number == null) return;
                 var set = row.Values[2].FormattedValue;
 
@@ -123,19 +123,19 @@ namespace pkmncube {
 
                 foreach (var possibleResult in list.Items) {
                     var str = possibleResult.Link;
-                    if (str.Contains("deck") || str.Contains("product") || str.Contains("price-guide")) continue;
-                    if (new Regex(".*-[a-z]+[0-9]+$").Match(str).Success && !set.ToLower().Contains("promo")) continue;
-                    if (str.Contains(name.ToLower())) result = str;
-                }
-
-                foreach (var possibleResult in list.Items) {
-                    var str = possibleResult.Link;
                     attempts++;
                     if (attempts > 5) break;
                     if (!str.Contains(TCGPlayerSlug(set))) continue;
                     if (str.Contains("deck") || str.Contains("product") || str.Contains("price-guide") || str.Contains("secret-rare")) continue;
                     if (new Regex(".*-[a-z]+[0-9]+$").Match(str).Success && !set.ToLower().Contains("promo")) continue;
-                    if (str.Contains(name.ToLower())) result = str;
+                    if (str.Contains(TCGPlayerSlug(name))) {result = str; break;}
+                }
+
+                foreach (var possibleResult in list.Items) {
+                    var str = possibleResult.Link;
+                    if (str.Contains("deck") || str.Contains("product") || str.Contains("price-guide") || str.Contains("secret-rare")) continue;
+                    if (new Regex(".*-[a-z]+[0-9]+$").Match(str).Success && !set.ToLower().Contains("promo")) continue;
+                    if (str.Contains(TCGPlayerSlug(name))) {result = str; break;}
                 }
 
                 if (!result.EndsWith(number.ToString())) {
