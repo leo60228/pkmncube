@@ -10,6 +10,8 @@ using System.Threading;
 using Google.Apis.Sheets.v4.Data;
 using Google.Apis.Customsearch.v1;
 using System.Text.RegularExpressions;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace pkmncube {
     class Program {
@@ -94,13 +96,17 @@ namespace pkmncube {
             }, Configuration["sheet"]).ExecuteAsync();
             var sheet = spreadsheet.Sheets[0];
             var cells = sheet.Data[0];
-            var rowNum = 0;
-            foreach (var row in cells.RowData) {
-                if (++rowNum < 2) continue;
+
+            List<Request> requests = new List<Request>();
+            
+            Parallel.ForEach<RowData>(cells.RowData, new ParallelOptions {MaxDegreeOfParallelism = -1}, (row, state, rowNumLong) => {
+                int rowNum = (int) rowNumLong;
+
+                if (++rowNum < 2) return;
                 var name = row.Values[0].FormattedValue;
-                if (name == "" || name == null) continue;
+                if (name == "" || name == null) return;
                 var number = row.Values[1].EffectiveValue.NumberValue;
-                if (number == null) continue;
+                if (number == null) return;
                 var set = row.Values[2].FormattedValue;
 
                 Console.WriteLine($"card {rowNum - 1}...");
@@ -110,7 +116,7 @@ namespace pkmncube {
                 var request = GoogleSearch.List(query);
                 request.Cx = Configuration["google-custom-search-cx"];
 
-                var list = await request.ExecuteAsync();
+                var list = request.Execute();
                 var attempts = 0;
 
                 var result = "";
@@ -153,12 +159,16 @@ namespace pkmncube {
                     }
                 };
 
-                var sheetUpdateRequest = new BatchUpdateSpreadsheetRequest {
-                    Requests = new[] {valueUpdateRequest}
-                };
+                lock (requests) {
+                    requests.Add(valueUpdateRequest);
+                }
+            });
 
-                await GoogleSheets.BatchUpdate(sheetUpdateRequest, Configuration["sheet"]).ExecuteAsync();
-            }
+            var sheetUpdateRequest = new BatchUpdateSpreadsheetRequest {
+                Requests = requests.ToList()
+            };
+
+            await GoogleSheets.BatchUpdate(sheetUpdateRequest, Configuration["sheet"]).ExecuteAsync();
         }
 
         static void Main(string[] args) {
