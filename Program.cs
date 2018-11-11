@@ -63,7 +63,7 @@ namespace pkmncube {
             if (help.HasValue()) Environment.Exit(0);
         }
 
-        public string TCGPlayerSlug(string set) => Regex.Replace(set.ToLower().Replace(" ", "-"), @"['().]", "");
+        public string TCGPlayerSlug(string set) => Regex.Replace(set.ToLower().Replace(" ", "-"), @"['().[\]!]", "");
 
         async Task GoogleLogin() {
             var credential = await GoogleWebAuthorizationBroker.AuthorizeAsync(
