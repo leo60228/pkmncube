@@ -63,7 +63,7 @@ namespace pkmncube {
             if (help.HasValue()) Environment.Exit(0);
         }
 
-        string TCGPlayerSlug(string set) => set.ToLower().Replace(" ", "-").Replace("'", "").Replace(".", "");
+        string TCGPlayerSlug(string set) => Regex.Replace(set.ToLower().Replace(" ", "-"), @"['().]", "");
 
         async Task GoogleLogin() {
             var credential = await GoogleWebAuthorizationBroker.AuthorizeAsync(
@@ -112,12 +112,13 @@ namespace pkmncube {
                     var set = row.Values[2].FormattedValue;
                     if (set == null) set = "";
 
-                    Console.WriteLine($"card {rowNum - 1}...");
-
                     var oldLink = row.Values[5].FormattedValue;
-                    if (oldLink != "" && oldLink != null) return null;
+                    if (oldLink != "" && oldLink != null) {
+                        Console.WriteLine($"card {rowNum - 1}...");
+                        return null;
+                    }
 
-                    var query = $"buy \"{name}\" set {set} {number} pokemon";
+                    var query = $"buy \"{name}\" {set} {number} pokemon";
 
                     var request = GoogleSearch.List(query);
                     request.Cx = Configuration["google-custom-search-cx"];
@@ -136,10 +137,10 @@ namespace pkmncube {
                         if (!str.Contains(TCGPlayerSlug(set))) continue;
                         if (str.Contains("deck") || str.Contains("product") || str.Contains("price-guide") || str.Contains("secret-rare")) continue;
                         if (set != "" && new Regex(".*-[ -km-uw-~]+[0-9]+$").Match(str).Success && !set.ToLower().Contains("promo")) continue;
-                        if (str.Contains(TCGPlayerSlug(name))) { result = str; break; }
+                        if (str.Contains(TCGPlayerSlug(name)) || name == "Oricorio" /* ??? */) { result = str; break; }
                     }
 
-                    foreach (var possibleResult in list.Items) {
+                    if (result == "") foreach (var possibleResult in list.Items) {
                         var str = possibleResult.Link;
                         if (str.Contains("deck") || str.Contains("product") || str.Contains("price-guide") || str.Contains("secret-rare")) continue;
                         if (set != "" && new Regex(".*-[ -km-uw-~]+[0-9]+$").Match(str).Success && !set.ToLower().Contains("promo")) continue;
@@ -166,6 +167,8 @@ namespace pkmncube {
                                        }}
                         }
                     };
+
+                    Console.WriteLine($"card {rowNum - 1}...");
 
                     return valueUpdateRequest;
                 };
