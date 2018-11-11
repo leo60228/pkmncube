@@ -90,12 +90,19 @@ namespace pkmncube {
 
         async Task Execute(string[] args) {
             Configure(args);
+            Console.WriteLine("Read configuration, logging in...");
             await GoogleLogin();
+            Console.WriteLine("Logged in, downloading spreadsheet...");
             var spreadsheet = await GoogleSheets.GetByDataFilter(new GetSpreadsheetByDataFilterRequest {
+                DataFilters = new[] {new DataFilter {
+                    A1Range = "A1:F"
+                }},
                 IncludeGridData = true
             }, Configuration["sheet"]).ExecuteAsync();
             var sheet = spreadsheet.Sheets[0];
             var cells = sheet.Data[0];
+
+            Console.WriteLine("Spreadsheet downloaded, starting searches...");
 
             int currentRowNum = 0;
             List<Task<Request>> requests = new List<Task<Request>>();
@@ -120,9 +127,8 @@ namespace pkmncube {
 
                     var query = $"buy \"{name}\" {set} {number} pokemon";
 
-                    var request = GoogleSearch.List(query);
+                    var request = GoogleSearch.Siterestrict.List(query);
                     request.Cx = Configuration["google-custom-search-cx"];
-                    if (Configuration["site"] != null && Configuration["site"] != "") request.SiteSearch = Configuration["site"];
 
                     var list = await request.ExecuteAsync();
                     var attempts = 0;
@@ -188,6 +194,8 @@ namespace pkmncube {
 
             var finishedRequests = (await Task.WhenAll<Request>(requests)).Where(e => e != null);
 
+            Console.WriteLine("Sending updates...");
+
             if (finishedRequests.Count() > 0) {
                 var sheetUpdateRequest = new BatchUpdateSpreadsheetRequest {
                     Requests = finishedRequests.ToList()
@@ -195,6 +203,8 @@ namespace pkmncube {
 
                 await GoogleSheets.BatchUpdate(sheetUpdateRequest, Configuration["sheet"]).ExecuteAsync();
             }
+
+            Console.WriteLine("Updates sent, exiting...");
         }
 
         static void Main(string[] args) {
