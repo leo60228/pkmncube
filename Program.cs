@@ -129,7 +129,10 @@ namespace pkmncube {
 
                     var result = "";
 
-                    if (list?.Items == null) return null;
+                    if ((list?.Items?.Count ?? 0) < 1) {
+                        Console.WriteLine($"Query '{query}' for {name} had no results, skipping...");
+                        return null;
+                    }
 
                     foreach (var possibleResult in list.Items) {
                         var str = possibleResult.Link;
