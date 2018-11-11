@@ -142,6 +142,7 @@ namespace pkmncube {
                         if (str.Contains("deck") || str.Contains("product") || str.Contains("price-guide") || str.Contains("secret-rare")) continue;
                         if (set != "" && new Regex(".*-[ -km-uw-~]+[0-9]+$").Match(str).Success && !set.ToLower().Contains("promo")) continue;
                         if (str.Contains("lvx") && !name.ToLower().Contains("lv")) continue;
+                        if (str.Count(f => f == '/') < 5) continue;
                         if (str.Contains(TCGPlayerSlug(name))) { result = str; break; }
                     }
 
@@ -150,6 +151,7 @@ namespace pkmncube {
                         if (str.Contains("deck") || str.Contains("product") || str.Contains("price-guide") || str.Contains("secret-rare")) continue;
                         if (set != "" && new Regex(".*-[ -km-uw-~]+[0-9]+$").Match(str).Success && !set.ToLower().Contains("promo")) continue;
                         if (str.Contains("lvx") && !name.ToLower().Contains("lv")) continue;
+                        if (str.Count(f => f == '/') < 5) continue;
                         if (str.Contains(TCGPlayerSlug(name))) { result = str; break; }
                     }
 
