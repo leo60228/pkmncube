@@ -122,6 +122,7 @@ namespace pkmncube {
 
                     var request = GoogleSearch.List(query);
                     request.Cx = Configuration["google-custom-search-cx"];
+                    if (Configuration["site"] != null && Configuration["site"] != "") request.SiteSearch = Configuration["site"];
 
                     var list = await request.ExecuteAsync();
                     var attempts = 0;
