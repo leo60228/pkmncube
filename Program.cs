@@ -67,12 +67,12 @@ namespace pkmncube {
 
         async Task GoogleLogin() {
             var credential = await GoogleWebAuthorizationBroker.AuthorizeAsync(
-                new ClientSecrets {
-                    ClientId = Configuration["google-client-id"],
-                    ClientSecret = Configuration["google-client-secret"]
-                },
-                new[] { SheetsService.Scope.Drive },
-                "user", CancellationToken.None);
+                    new ClientSecrets {
+                        ClientId = Configuration["google-client-id"],
+                        ClientSecret = Configuration["google-client-secret"]
+                    },
+                    new[] { SheetsService.Scope.Drive },
+                    "user", CancellationToken.None);
 
             var sheetsService = new SheetsService(new BaseClientService.Initializer {
                 ApplicationName = "pkmncube",
@@ -97,88 +97,85 @@ namespace pkmncube {
             var sheet = spreadsheet.Sheets[0];
             var cells = sheet.Data[0];
 
-            List<int> rowsUsed = new List<int>();
-            List<Request> requests = new List<Request>();
-            
-            Parallel.ForEach<RowData>(cells.RowData, new ParallelOptions {MaxDegreeOfParallelism = -1}, (row, state, rowNumLong) => {
-                int rowNum = (int) rowNumLong;
+            int currentRowNum = 0;
+            List<Task<Request>> requests = new List<Task<Request>>();
 
-                if (rowsUsed.Contains(rowNum)) return;
-                rowsUsed.Add(rowNum);
+            foreach (var row in cells.RowData) {
+                currentRowNum++;
+                int rowNum = currentRowNum;
+                Func<Task<Request>> func = async () => {
+                    if (rowNum < 2) return null;
+                    var name = row.Values[0].FormattedValue;
+                    if (name == "" || name == null) return null;
+                    var number = row.Values[1].FormattedValue;
+                    if (number == null) number = "";
+                    var set = row.Values[2].FormattedValue;
+                    if (set == null) set = "";
 
-                if (++rowNum < 2) return;
-                var name = row.Values[0].FormattedValue;
-                if (name == "" || name == null) return;
-                var number = row.Values[1].FormattedValue;
-                if (number == null) number = "";
-                var set = row.Values[2].FormattedValue;
-                if (set == null) set = "";
+                    Console.WriteLine($"card {rowNum - 1}...");
 
-                Console.WriteLine($"card {rowNum - 1}...");
+                    var oldLink = row.Values[5].FormattedValue;
+                    if (oldLink != "" && oldLink != null) return null;
 
-                var oldLink = row.Values[5].FormattedValue;
-                if (oldLink != "" && oldLink != null) return;
+                    var query = $"buy \"{name}\" set {set} {number} pokemon";
 
-                Console.WriteLine($"card {rowNum - 1}...");
+                    var request = GoogleSearch.List(query);
+                    request.Cx = Configuration["google-custom-search-cx"];
 
-                var query = $"buy \"{name}\" set {set} {number} pokemon";
+                    var list = await request.ExecuteAsync();
+                    var attempts = 0;
 
-                var request = GoogleSearch.List(query);
-                request.Cx = Configuration["google-custom-search-cx"];
+                    var result = "";
 
-                var list = request.Execute();
-                var attempts = 0;
+                    if (list?.Items == null) return null;
 
-                var result = "";
-
-                if (list?.Items == null) return;
-
-                foreach (var possibleResult in list.Items) {
-                    var str = possibleResult.Link;
-                    attempts++;
-                    if (attempts > 5) break;
-                    if (!str.Contains(TCGPlayerSlug(set))) continue;
-                    if (str.Contains("deck") || str.Contains("product") || str.Contains("price-guide") || str.Contains("secret-rare")) continue;
-                    if (set != "" && new Regex(".*-[ -km-uw-~]+[0-9]+$").Match(str).Success && !set.ToLower().Contains("promo")) continue;
-                    if (str.Contains(TCGPlayerSlug(name))) {result = str; break;}
-                }
-
-                foreach (var possibleResult in list.Items) {
-                    var str = possibleResult.Link;
-                    if (str.Contains("deck") || str.Contains("product") || str.Contains("price-guide") || str.Contains("secret-rare")) continue;
-                    if (set != "" && new Regex(".*-[ -km-uw-~]+[0-9]+$").Match(str).Success && !set.ToLower().Contains("promo")) continue;
-                    if (str.Contains(TCGPlayerSlug(name))) {result = str; break;}
-                }
-
-                if (number != "" && !result.EndsWith(number.ToString()) && !(new Regex(".*-lv[0-9]+$")).Match(result).Success) {
-                    result = (new Regex("[0-9]+$")).Replace(result, number.ToString());
-                }
-
-                var link = new CellData();
-
-                link.UserEnteredValue = new ExtendedValue {StringValue = result};
-
-                var valueUpdateRequest = new Request {
-                    UpdateCells = new UpdateCellsRequest {
-                        Fields = "*",
-                        Start = new GridCoordinate {
-                            ColumnIndex = 5,
-                            RowIndex = rowNum - 1
-                        },
-                        Rows = new[] {new RowData {
-                            Values = new[] {link}
-                        }}
+                    foreach (var possibleResult in list.Items) {
+                        var str = possibleResult.Link;
+                        attempts++;
+                        if (attempts > 5) break;
+                        if (!str.Contains(TCGPlayerSlug(set))) continue;
+                        if (str.Contains("deck") || str.Contains("product") || str.Contains("price-guide") || str.Contains("secret-rare")) continue;
+                        if (set != "" && new Regex(".*-[ -km-uw-~]+[0-9]+$").Match(str).Success && !set.ToLower().Contains("promo")) continue;
+                        if (str.Contains(TCGPlayerSlug(name))) { result = str; break; }
                     }
+
+                    foreach (var possibleResult in list.Items) {
+                        var str = possibleResult.Link;
+                        if (str.Contains("deck") || str.Contains("product") || str.Contains("price-guide") || str.Contains("secret-rare")) continue;
+                        if (set != "" && new Regex(".*-[ -km-uw-~]+[0-9]+$").Match(str).Success && !set.ToLower().Contains("promo")) continue;
+                        if (str.Contains(TCGPlayerSlug(name))) { result = str; break; }
+                    }
+
+                    if (number != "" && !result.EndsWith(number.ToString()) && !(new Regex(".*-lv[0-9]+$")).Match(result).Success) {
+                        result = (new Regex("[0-9]+$")).Replace(result, number.ToString());
+                    }
+
+                    var link = new CellData();
+
+                    link.UserEnteredValue = new ExtendedValue { StringValue = result };
+
+                    var valueUpdateRequest = new Request {
+                        UpdateCells = new UpdateCellsRequest {
+                            Fields = "*",
+                            Start = new GridCoordinate {
+                                ColumnIndex = 5,
+                                RowIndex = rowNum - 1
+                            },
+                            Rows = new[] {new RowData {
+                                           Values = new[] {link}
+                                       }}
+                        }
+                    };
+
+                    return valueUpdateRequest;
                 };
 
-                lock (requests) {
-                    requests.Add(valueUpdateRequest);
-                }
-            });
+                requests.Add(func());
+            };
 
             if (requests.Count > 0) {
                 var sheetUpdateRequest = new BatchUpdateSpreadsheetRequest {
-                    Requests = requests.ToList()
+                    Requests = (await Task.WhenAll<Request>(requests)).Where(e => e != null).ToList()
                 };
 
                 await GoogleSheets.BatchUpdate(sheetUpdateRequest, Configuration["sheet"]).ExecuteAsync();
